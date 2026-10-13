@@ -54,6 +54,56 @@ distinct_scores.scheme.describe()
 
 # ----------------------------------------------------------------------
 
+from collections import Counter
+from functools import reduce
+
+counts: dict[int, int] = Counter(distinct_scores.scheme)
+print(counts)
+
+reduce(lambda sum, curr: sum + curr[0] * curr[1], counts.items(), 0)
+
+# ----------------------------------------------------------------------
+
+{k: v for k, v in counts.items() if k % 2 == 1}
+
+# ----------------------------------------------------------------------
+
+len(counts)
+
+# ----------------------------------------------------------------------
+
+print({2 ** i: sum(v for k, v in counts.items() if k % (2 ** i) == 0) for i in range(10)})
+
+# ----------------------------------------------------------------------
+
+odds: pd.DataFrame = distinct_scores[distinct_scores.scheme % 2 == 1]
+odd_scores: list[Iterable[float]] = list(odds[score_columns].to_numpy())
+score_to_multiplicity: dict[tuple[float, ...], int] = \
+    {tuple(odd_scores[i]): odds.scheme.iloc[i] for i in range(len(odds))}
+
+odd_df: pd.DataFrame = df[df.set_index(score_columns).index.isin(odd_scores)]
+odd_df
+
+# ----------------------------------------------------------------------
+
+odd_df["multiplicity"] = 0
+for i in odd_df.index:
+    odd_df.loc[i, "multiplicity"] = \
+        score_to_multiplicity[tuple(odd_df.loc[i, score_columns])] # type: ignore
+
+pd.set_option("display.max_rows", None)
+odd_df.sort_values(["multiplicity"] + score_columns, inplace = True)
+
+# ----------------------------------------------------------------------
+
+odd_df.reset_index(drop = True)
+
+# ----------------------------------------------------------------------
+
+odd_df.groupby(score_columns).multiplicity.count().reset_index().sort_values("multiplicity").reset_index(drop = True)
+
+# ----------------------------------------------------------------------
+
 print(list(enumerate(distinct_scores.scheme.head(30))))
 
 # ----------------------------------------------------------------------
