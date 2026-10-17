@@ -1,7 +1,7 @@
 from surnames import *
 from typing import NamedTuple, Callable
 from collections.abc import Iterable
-import pandas as pd
+from helpers.pandas_util import *
 
 class SingleLetterNameGenerator:
 
@@ -19,12 +19,38 @@ class SingleLetterNameGenerator:
 # -------------------------------------------------------------------------------
 
 class Family(NamedTuple):
+
     father_birth: str
     father_married: str
     mother_birth: str
     mother_married: str
     son_birth: str
     daughter_birth: str
+
+    def transform(self, name: str) -> str:
+        key: tuple[int, int] = (
+            len(get_components(self.father_birth)),
+            len(get_components(self.mother_birth))
+        )
+        mapping: dict[tuple[int, int], dict[str, str]] = {
+            (1, 1): {"A": "B", "B": "A"},
+            (1, 2): {"A": "C", "B": "A", "C": "B"},
+            (2, 1): {"A": "B", "B": "C", "C": "A"},
+            (2, 2): {"A": "C", "B": "D", "C": "A", "D": "B"}
+        }
+        return "".join(mapping[key].get(c, c) for c in name)
+
+    def gender_swap(self) -> Family:
+        swapped_names: dict[str, str] = {
+            "mother_birth": self.father_birth,
+            "mother_married": self.father_married,
+            "father_birth": self.mother_birth,
+            "father_married": self.mother_married,
+            "daughter_birth": self.son_birth,
+            "son_birth": self.daughter_birth
+        }
+        swapped_names = {label: self.transform(name) for label, name in swapped_names.items()}
+        return Family(**swapped_names)
 
 # -------------------------------------------------------------------------------
 
@@ -119,16 +145,34 @@ def import_scheme_from_family(family: Family, scheme_name: str | None = None) ->
         )
     })
 
-def import_scheme_from_series(series: pd.Series, scheme_name: str | None = None) -> type[Scheme]:
-    return import_scheme_from_family(Family(*series), scheme_name)
+# -------------------------------------------------------------------------------
+
+def import_families_from_dataframe(df: pd.DataFrame) -> list[Family]:
+    return extract_named_tuples_from_df(df, Family)
 
 def import_schemes_from_dataframe(
     df: pd.DataFrame, scheme_names: Iterable[str] | None = None
 ) -> list[type[Scheme]]:
     if scheme_names is None:
-        return [import_scheme_from_family(Family(*row)) for row in df.to_numpy()]
+        return [import_scheme_from_family(family) for family in import_families_from_dataframe(df)]
     else:
         return [
-            import_scheme_from_family(Family(*row), scheme_name)
-            for row, scheme_name in zip(df.to_numpy(), scheme_names)
+            import_scheme_from_family(family, scheme_name)
+            for family, scheme_name in zip(import_families_from_dataframe(df), scheme_names)
         ]
+
+def import_family_from_dataframe_row_pos(df: pd.DataFrame, row_pos: int) -> Family:
+    return extract_named_tuple_from_df_row_pos(df, row_pos, Family)
+
+def import_scheme_from_dataframe_row_pos(
+    df: pd.DataFrame, row_pos: int, scheme_name: str | None = None
+) -> type[Scheme]:
+    return import_scheme_from_family(import_family_from_dataframe_row_pos(df, row_pos), scheme_name)
+
+def import_family_from_dataframe_row_index(df: pd.DataFrame, row_index: Any) -> Family:
+    return extract_named_tuple_from_df_row_index(df, row_index, Family)
+
+def import_scheme_from_dataframe_row_index(
+    df: pd.DataFrame, row_index: Any, scheme_name: str | None = None
+) -> type[Scheme]:
+    return import_scheme_from_family(import_family_from_dataframe_row_index(df, row_index), scheme_name)

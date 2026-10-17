@@ -7,6 +7,6 @@ if __name__ == "__main__":
     ]
     padding_length: int = max(len(scheme.__name__) for scheme in scheme_list)
     for scheme in scheme_list:
-        scores: list[float] = evaluate_scheme(scheme)
+        scores: Scores = evaluate_scheme(scheme)
         print(f"{scheme.__name__.rjust(padding_length)}: {sum(scores):.2f} -> "
               f"[{', '.join(f'{score:.2f}' for score in scores)}]")

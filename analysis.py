@@ -12,13 +12,7 @@ df.head()
 
 # ----------------------------------------------------------------------
 
-score_columns: list[str] = [
-    "husband_wife", "brother_sister",
-    "brother_brother", "sister_sister",
-    "son_father", "daughter_father",
-    "son_mother", "daughter_mother"
-]
-
+score_columns: list[str] = list(Scores._fields)
 df["score"] = df.apply(lambda row: row[score_columns].sum(), axis = 1)
 df.head()
 
@@ -82,7 +76,6 @@ score_to_multiplicity: dict[tuple[float, ...], int] = \
     {tuple(odd_scores[i]): odds.scheme.iloc[i] for i in range(len(odds))}
 
 odd_df: pd.DataFrame = df[df.set_index(score_columns).index.isin(odd_scores)]
-odd_df
 
 # ----------------------------------------------------------------------
 
@@ -96,11 +89,51 @@ odd_df.sort_values(["multiplicity"] + score_columns, inplace = True)
 
 # ----------------------------------------------------------------------
 
-odd_df.reset_index(drop = True)
+odd_df = odd_df.reset_index(drop = True)
+odd_df["group_id"] = odd_df.groupby(score_columns, sort = False).ngroup()
+odd_df
 
 # ----------------------------------------------------------------------
 
-odd_df.groupby(score_columns).multiplicity.count().reset_index().sort_values("multiplicity").reset_index(drop = True)
+groups_df = odd_df.drop_duplicates(score_columns).reset_index()[score_columns + ["score", "multiplicity"]]
+groups_df
+
+# ----------------------------------------------------------------------
+
+from helpers.pandas_util import *
+
+class GenderSwapRow(NamedTuple):
+    swapped_family_id: int
+    original_group_id: int
+    swapped_group_id: int
+    multiplicity: int
+    score: float
+
+families: list[Family] = import_families_from_dataframe(odd_df)
+gender_swap_data: list[GenderSwapRow] = []
+
+for i, family in enumerate(families):
+    swapped_family_id: int = families.index(family.gender_swap())
+    original_group_id: int = odd_df.loc[i, "group_id"].item() # type: ignore
+    swapped_group_id: int = odd_df.loc[swapped_family_id, "group_id"].item() # type: ignore
+    multiplicity: int = groups_df.loc[original_group_id, "multiplicity"].item() # type: ignore
+    assert multiplicity == groups_df.loc[swapped_group_id, "multiplicity"].item() # type: ignore
+    score: float = groups_df.loc[original_group_id, "score"].item() # type: ignore
+    assert score == groups_df.loc[swapped_group_id, "score"].item() # type: ignore
+    gender_swap_data.append(GenderSwapRow(swapped_family_id, original_group_id, swapped_group_id, multiplicity, score))
+
+gender_swap_df = build_df_from_named_tuples(gender_swap_data)
+gender_swap_df.index.rename("original_family_id", inplace = True)
+
+gender_swap_df
+
+# ----------------------------------------------------------------------
+
+gender_swap_df[gender_swap_df.original_group_id == gender_swap_df.swapped_group_id]
+
+# ----------------------------------------------------------------------
+
+gender_swap_df[gender_swap_df.index == gender_swap_df.swapped_family_id]
 
 # ----------------------------------------------------------------------
 
@@ -163,7 +196,7 @@ manual_schemes
 manual_schemes["manual"] = [[] for i in range(len(manual_schemes))]
 
 for i in manual_schemes.index:
-    row_scheme: type[Scheme] = import_scheme_from_series(manual_schemes.loc[i, COLUMNS]) # type: ignore
+    row_scheme: type[Scheme] = import_scheme_from_dataframe_row_index(manual_schemes, i)
     for scheme in schemes:
         if export_scheme_to_family(scheme) == export_scheme_to_family(row_scheme):
             manual_schemes.loc[i, "manual"].append(scheme.__name__)

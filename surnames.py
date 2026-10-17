@@ -1,9 +1,22 @@
 from typing import Literal, Final
 from abc import ABC, abstractmethod
 from random import randint
+from typing import NamedTuple
 
 type Gender = Literal["M", "F"]
 NAME_LENGTH: Final[int] = 10
+
+class Scores(NamedTuple):
+    husband_wife: float
+    brother_sister: float
+    brother_brother: float
+    sister_sister: float
+    son_father: float
+    daughter_father: float
+    son_mother: float
+    daughter_mother: float
+
+# -------------------------------------------------------------------------------
 
 class Scheme(ABC):
 
@@ -76,7 +89,7 @@ def random_name(already_used_components: set[str], num_components: int = 1) -> s
 
 # -------------------------------------------------------------------------------
 
-def evaluate_scheme(scheme: type[Scheme], p: float = 0.5) -> list[float]:
+def evaluate_scheme(scheme: type[Scheme], p: float = 0.5) -> Scores:
 
     def r(gender: Gender) -> str:
         return random_name(already_used_components, scheme.stable_num_components_at_birth(gender))
@@ -127,7 +140,7 @@ def evaluate_scheme(scheme: type[Scheme], p: float = 0.5) -> list[float]:
         daughter_1_birth, daughter_1_married, mother_married, mother_married, p
     )
 
-    return [
+    return Scores(
         husband_wife_score, brother_sister_score, brother_brother_score, sister_sister_score,
         son_father_score, daughter_father_score, son_mother_score, daughter_mother_score
-    ]
+    )

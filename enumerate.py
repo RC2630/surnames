@@ -158,11 +158,7 @@ def run() -> None:
         (scheme.__name__, *evaluate_scheme(scheme), *export_scheme_to_family(scheme))
         for scheme in tqdm(schemes)
     ]
-    df = pd.DataFrame(data)
-    df.columns = (
-        "scheme", "husband_wife", "brother_sister", "brother_brother", "sister_sister",
-        "son_father", "daughter_father", "son_mother", "daughter_mother"
-    ) + Family._fields
+    df = pd.DataFrame(data, columns = ("scheme",) + Scores._fields + Family._fields)
     df.to_csv("data/schemes.csv", index = False)
 
 # -------------------------------------------------------------------------------
